@@ -1,0 +1,5 @@
+<!doctype html>
+<title>Login Sample</title>
+{% if current_user.is_authenticated %}
+  <h1>Hello {{ current_user.get_id() }}!</h1>
+{% endif %}
