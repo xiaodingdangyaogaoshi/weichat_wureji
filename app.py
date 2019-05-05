@@ -86,6 +86,23 @@ def return_img_stream(img_local_path):
         img_stream = img_f.read()
         img_stream = base64.b64encode(img_stream)
     return img_stream
+'''
+下面后台管理网站的设置
+'''
+@app.route('/design')
+@login_required
+def design():
+    return render_template("design.html")
+
+@app.route('/system')
+@login_required
+def system():
+    return render_template("system.html")
+
+@app.route('/insert')
+@login_required
+def insert():
+    return render_template("insert.html")
 
 class User(UserMixin):
     pass
@@ -110,10 +127,10 @@ def load_user(username):
 def unauthorized_handler():
     return 'Unauthorized'
 
-@app.route('/hello')
+@app.route('/indexhoutai')
 @login_required
 def index():
-    return render_template('hello.html')
+    return render_template('indexhoutai.html')
 
 @app.route('/home')
 @fresh_login_required
