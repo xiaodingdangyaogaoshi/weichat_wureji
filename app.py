@@ -8,11 +8,13 @@ from sqlalchemy import create_engine
 from sqlalchemy import *
 from sqlalchemy.orm import *
 import config
+import pymysql
+from flask_bootstrap import Bootstrap
 from flask import Flask, render_template, request, redirect, url_for, flash, abort
 #from flask.ext.login import (LoginManager, UserMixin, login_user, logout_user,
                             #current_user, login_required, fresh_login_required)
 app = Flask(__name__)
-
+bootstrap=Bootstrap(app)
 login_manager = LoginManager(app)
 # 设置登录视图的名称，如果一个未登录用户请求一个只有登录用户才能访问的视图，
 # 则闪现一条错误消息，并重定向到这里设置的登录视图。
@@ -37,7 +39,7 @@ class news(db.Model):
     AdminID=db.Column(db.Integer,nullable=False)
     AuthorName=db.Column(db.String(255),nullable=False)
     CoverImage=db.Column(db.String(255),nullable=False)
-    #CreateTime=db.Column(db.Time,nullable=False)
+    Creattime=db.Column(db.String(255),nullable=False)
     NewsContent=db.Column(db.String(255),nullable=False)
     NewsID=db.Column(db.Integer,primary_key=True,autoincrement=True,nullable=False)
     NewsTittle=db.Column(db.String(255),nullable=False)
@@ -92,7 +94,15 @@ def return_img_stream(img_local_path):
 @app.route('/design')
 @login_required
 def design():
-    return render_template("design.html")
+    conn=pymysql.connect(host='127.0.0.1',user='root',password='zys9970304',db='wechat',charset='utf8')
+    cur=conn.cursor()
+    sql="select * from newstwo"
+    cur.execute(sql)
+
+    u=cur.fetchall()
+    print(u)
+    conn.close()
+    return render_template("design.html",u=u)
 
 @app.route('/system')
 @login_required
