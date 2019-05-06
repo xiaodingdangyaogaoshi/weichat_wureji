@@ -1,4 +1,6 @@
 import json
+import os
+
 import MySQLdb
 from flask.json import jsonify
 from flask_login import LoginManager, UserMixin, login_required, login_user, fresh_login_required, current_user
@@ -15,6 +17,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, abo
                             #current_user, login_required, fresh_login_required)
 app = Flask(__name__)
 bootstrap=Bootstrap(app)
+basedir = os.path.abspath(os.path.dirname(__file__))
 login_manager = LoginManager(app)
 # 设置登录视图的名称，如果一个未登录用户请求一个只有登录用户才能访问的视图，
 # 则闪现一条错误消息，并重定向到这里设置的登录视图。
@@ -109,9 +112,15 @@ def design():
 def system():
     return render_template("system.html")
 
-@app.route('/insert')
+@app.route('/insert',methods=['GET',"POST"])
 @login_required
 def insert():
+    types=request.values.get("types")
+    print(types)
+    title=request.form.get("title")
+    author=request.form.get("author")
+    img=request.form.get("smallimg")
+    content=request.form.get("content")
     return render_template("insert.html")
 
 class User(UserMixin):
@@ -150,10 +159,8 @@ def home():
 @app.route('/index',methods=["GET","POST"])
 def form():
     if request.method == 'POST':
-        print("你到底执行没")
         username = request.form.get('fullname')
         user = query_user(username)
-        print(user)
         print(username)
         # 验证表单中提交的用户名和密码
         if user is not None and request.form['fullpassword'] == user['password']:
