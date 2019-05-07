@@ -120,8 +120,7 @@
                             <td>{{ i[7] }}</td>
                             <td>{{ i[8] }}</td>
                             <td>
-                                <a class="link-update" href="#">修改</a>
-                                <a class="link-del" href="#">删除</a>
+                                <input type="button" value="删除" onclick="del({{ i[4] }})">
                             </td>
                         </tr>
                         {% endfor %}
@@ -134,4 +133,20 @@
     <!--/main-->
 </div>
 </body>
+ <script src="http://libs.baidu.com/jquery/1.9.0/jquery.js"></script>
+<script >
+    function del(id) {
+        console.log(id);
+        var data={
+        'id':id
+        };
+        console.log(data)
+        $.ajax({
+        type:'POST',
+        dataType:'json',
+        url:'/deleteget',
+        data:data,
+        });
+    }
+</script>
 </html>

@@ -94,33 +94,53 @@ def return_img_stream(img_local_path):
 '''
 下面后台管理网站的设置
 '''
-@app.route('/design')
+@app.route('/design',methods=['GET','POST'])
 @login_required
 def design():
     conn=pymysql.connect(host='127.0.0.1',user='root',password='zys9970304',db='wechat',charset='utf8')
     cur=conn.cursor()
     sql="select * from newstwo"
     cur.execute(sql)
-
     u=cur.fetchall()
-    print(u)
     conn.close()
     return render_template("design.html",u=u)
-
+@app.route('/deleteget',methods=['GET',"POST"])
+@login_required
+def deleteget():
+    deleteid=request.form.get("id")
+    print(deleteid)
+    return "ok"
 @app.route('/system')
 @login_required
 def system():
     return render_template("system.html")
 
+def findmaxid():
+    conn=pymysql.connect(host='127.0.0.1',user='root',password='zys9970304',db='wechat',charset='utf8')
+    cur=conn.cursor()
+    sql=" select NewsID from newstwo where NewsID=(select max(NewsID) from newstwo)"
+    cur.execute(sql)
+    u=cur.fetchall()
+    print(u)
+    conn.close()
+    return u
+
 @app.route('/insert',methods=['GET',"POST"])
 @login_required
 def insert():
     types=request.values.get("types")
-    print(types)
     title=request.form.get("title")
     author=request.form.get("author")
     img=request.form.get("smallimg")
     content=request.form.get("content")
+    if(types=='xinwen'):
+        maxid = findmaxid()
+        maxnewsid = maxid[0][0]
+        maxnewsid = maxnewsid + 1
+        insertnews=news(AdminID="1",AuthorName=author,CoverImage=img,Creattime="20190507",NewsContent=content,NewsID=maxnewsid,NewsTittle=title,NewsType="1",ReadCount=0)
+        db.session.add(insertnews)
+        db.session.commit()
+
     return render_template("insert.html")
 
 class User(UserMixin):
