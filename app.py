@@ -1,7 +1,10 @@
 import json
 import os
+import random
+import time
 
 import MySQLdb
+import requests
 from flask.json import jsonify
 from flask_login import LoginManager, UserMixin, login_required, login_user, fresh_login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
@@ -55,25 +58,91 @@ class news(db.Model):
         return dict
 class comment(db.Model):
     __tablename__='commentstore'
-    id=db.Column(db.Integer,nullable=False,primary_key=True)
-    user_id=db.Column(db.Integer,nullable=False)
-    reply_comment_id=db.Column(db.Integer,nullable=False)
+
+    newsid = db.Column(db.Integer, nullable=False, primary_key=True)
     comment_detail=db.Column(db.String(255),nullable=False)
-    insert_time=db.Column(db.Time,nullable=False)
-    source_id=db.Column(db.Integer,nullable=False)
-    username=db.Column(db.String(255),nullable=True)
-    reply_user_name=db.Column(db.String(255),nullable=True)
-
-
+    def to_json(self):
+        dict = self.__dict__
+        if "_sa_instance_state" in dict:
+            del dict["_sa_instance_state"]
+        return dict
+class videos(db.Model):
+    __tablename__='video'
+    Videonumber=db.Column(db.Integer,nullable=False,primary_key=True)
+    Videotitle=db.Column(db.String(255))
+    Videocontent=db.Column(db.String(255))
+    Videourl=db.Column(db.String(1024))
+    Videocount=db.Column(db.Integer)
+    def to_json(self):
+        dict = self.__dict__
+        if "_sa_instance_state" in dict:
+            del dict["_sa_instance_state"]
+        return dict
 
 db.create_all()
+def get_json(url,num):
+    headers = {
+        'User-Agent':
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36'
+    }
 
+    params = {
+        'page_size': 10,
+        'next_offset':str(num),
+        'tag': '今日热门',
+        'platform': 'pc'
+    }
+
+    try:
+        html = requests.get(url, params=params, headers=headers)
+        return html.json()
+
+    except BaseException:
+        print('request error')
+        pass
+def bilibiliget():
+    for i in range(10):
+        url = 'http://api.vc.bilibili.com/board/v1/ranking/top?'
+        num = i * 10 + 1
+        html = get_json(url, num)
+        infos = html['data']['items']
+        for info in infos:
+            title = info['item']['description']  # 小视频的标题
+            video_url = info['item']['video_playurl']  # 小视频的下载链接
+            videomaxid = findvideomaxid()
+            videomaxiddetail = videomaxid[0][0]
+            videomaxiddetail = videomaxiddetail + 1
+            insertvideo = videos(Videonumber=videomaxiddetail, Videotitle=title, Videourl=video_url, Videocontent=title,
+                                 Videocount=0)
+
+            try:
+                db.session.add(insertvideo)
+                db.session.commit()
+                print("over")
+            except:
+                db.rollback()
+                print("insert error")
+
+        time.sleep(int(format(random.randint(2, 8))))  # 设置随机等待时间
+@app.route('/bilibili',methods=['GET','POST'])
+def bilibili():
+    bilibiliget()
+    return "ok"
 @app.route('/',methods=['GET'])
 def sqllink():
     # 建立数据库连接
     new_detail=db.session.query(news).all()
     result=[]
     for row in new_detail:
+        result.append(row.to_json())
+
+    return jsonify(result)
+
+@app.route('/video',methods=['GET','POST'])
+def videolink():
+    videolist= db.session.query(videos).all()
+    result = []
+    for row in videolist:
         result.append(row.to_json())
     return jsonify(result)
 
@@ -94,21 +163,109 @@ def return_img_stream(img_local_path):
 '''
 下面后台管理网站的设置
 '''
+@app.route('/findnews',methods=['GET','POST'])
+@login_required
+def findnews():
+    conn = pymysql.connect(host='127.0.0.1', user='root', password='zys9970304', db='wechat', charset='utf8')
+    cur = conn.cursor()
+    inputdata = request.values.get("typesdesign")
+    sql = "select * from newstwo "
+    cur.execute(sql)
+    u = cur.fetchall()
+    conn.close()
+    return render_template("findnews.html")
+
+@app.route('/findvideo',methods=['GET','POST'])
+@login_required
+def findvideo():
+    return render_template("findvideo.html")
+
 @app.route('/design',methods=['GET','POST'])
 @login_required
 def design():
     conn=pymysql.connect(host='127.0.0.1',user='root',password='zys9970304',db='wechat',charset='utf8')
     cur=conn.cursor()
+    type_design=request.values.get("typesdesign")
     sql="select * from newstwo"
     cur.execute(sql)
     u=cur.fetchall()
     conn.close()
     return render_template("design.html",u=u)
+
+@app.route('/videotest',methods=['GET','POST'])
+@login_required
+def videotest():
+    conn = pymysql.connect(host='127.0.0.1', user='root', password='zys9970304', db='wechat', charset='utf8')
+    cur = conn.cursor()
+    sql = "select  * from video"
+    cur.execute(sql)
+    u = cur.fetchall()
+    conn.close()
+    return render_template("video.html",u=u)
+global updatechageid
+@app.route('/updatenews/<id>',methods=['GET','POST'])
+@login_required
+def updatenews(id):
+        updateid=id
+        global updatechageid
+        updatechageid=id
+        conn = pymysql.connect(host='127.0.0.1', user='root', password='zys9970304', db='wechat', charset='utf8')
+        cur = conn.cursor()
+        sql = "select * from newstwo where NewsID ={}".format(updateid)
+        cur.execute(sql)
+        u = cur.fetchall()
+        conn.close()
+        title = request.form.get("title")
+        author = request.form.get("author")
+        img = request.form.get("smallimg")
+        content = request.form.get("content")
+        if (title!=None):
+            obj = news.query.filter(news.NewsID == updatechageid).first()
+            obj.title = title
+            obj.NewsTittle = title
+            obj.CoverImage = img
+            obj.NewsContent = content
+            obj.AuthorName = author
+            db.session.commit()
+            print (updatechageid)
+            print ("修改ok")
+        print(u)
+        return render_template("update.html",u=u)
+@app.route('/updatechage',methods=['GET','POST'])
+@login_required
+def updatechage():
+
+    title = request.form.get("title")
+    author = request.form.get("author")
+    img = request.form.get("smallimg")
+    content = request.form.get("content")
+    obj = news.query.filter(news.NewsID == updatechageid).first()
+    obj.title =title
+    obj.NewsTittle=title
+    obj.CoverImage=img
+    obj.NewsContent=content
+    obj.AuthorName=author
+    db.session.commit()
+    print (updatechageid)
+    print ("修改ok")
+    return render_template("design.html")
+
 @app.route('/deleteget',methods=['GET',"POST"])
 @login_required
 def deleteget():
     deleteid=request.form.get("id")
-    print(deleteid)
+    newsdelete = news.query.get(deleteid)
+    db.session.delete(newsdelete)
+    db.session.commit()
+    return "ok"
+@app.route('/videodeleteget',methods=['GET','POST'])
+@login_required
+def videodeleteget():
+    videodeleteid=request.form.get("id")
+    videosdelete=videos.query.get(videodeleteid)
+    db.session.delete(videosdelete)
+    db.session.commit()
+    print("删除over")
     return "ok"
 @app.route('/system')
 @login_required
@@ -124,7 +281,24 @@ def findmaxid():
     print(u)
     conn.close()
     return u
-
+def findvideomaxid():
+    conn = pymysql.connect(host='127.0.0.1', user='root', password='zys9970304', db='wechat', charset='utf8')
+    cur = conn.cursor()
+    sql = " select Videonumber from video where Videonumber=(select max(Videonumber) from video)"
+    cur.execute(sql)
+    u = cur.fetchall()
+    print(u)
+    conn.close()
+    return u
+def findcommentminumber():
+    conn = pymysql.connect(host='127.0.0.1', user='root', password='zys9970304', db='wechat', charset='utf8')
+    cur = conn.cursor()
+    sql = " select commentnumber from commentstore where commentnumber=(select max(commentnumber) from commentstore)"
+    cur.execute(sql)
+    u = cur.fetchall()
+    print(u)
+    conn.close()
+    return u
 @app.route('/insert',methods=['GET',"POST"])
 @login_required
 def insert():
@@ -140,7 +314,13 @@ def insert():
         insertnews=news(AdminID="1",AuthorName=author,CoverImage=img,Creattime="20190507",NewsContent=content,NewsID=maxnewsid,NewsTittle=title,NewsType="1",ReadCount=0)
         db.session.add(insertnews)
         db.session.commit()
-
+    if(types=='shipin'):
+        videomaxid=findvideomaxid()
+        videomaxiddetail=videomaxid[0][0]
+        videomaxiddetail=videomaxiddetail+1
+        insertvideo=videos(Videonumber=videomaxiddetail,Videotitle=title,Videourl=img,Videocontent=content,Videocount=0)
+        db.session.add(insertvideo)
+        db.session.commit()
     return render_template("insert.html")
 
 class User(UserMixin):
@@ -166,6 +346,22 @@ def load_user(username):
 def unauthorized_handler():
     return 'Unauthorized'
 
+@app.route('/getcomment/<id>/<commentfromwechat>')
+def getcomment(id,commentfromwechat):
+    #insertnumber=findcommentminumber();
+    #print(insertnumber)
+    insertcomment = comment(newsid=id,comment_detail=commentfromwechat)
+    db.session.add(insertcomment)
+    db.session.commit()
+    return "ok"
+@app.route('/forcomment',methods=['GET','POST'])
+def forcomment():
+    comment_detail = db.session.query(comment).all()
+    result = []
+    for row in comment_detail:
+        result.append(row.to_json())
+
+    return jsonify(result)
 @app.route('/indexhoutai')
 @login_required
 def index():
